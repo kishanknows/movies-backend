@@ -20,7 +20,8 @@ public class UserAuthMapper {
         return new UserAuthResponse(
                 userAuth.message(),
                 userAuth.success(),
-                userAuth.token()
+                userAuth.accessToken(),
+                userAuth.refreshToken()
         );
     }
 }

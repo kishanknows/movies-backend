@@ -3,6 +3,7 @@ package com.kishanknows.backend.auth.service;
 import com.kishanknows.backend.auth.dto.UserLoginRequest;
 import com.kishanknows.backend.auth.dto.UserRegistrationRequest;
 import com.kishanknows.backend.auth.mapper.UserAuthMapper;
+import com.kishanknows.backend.auth.model.RefreshToken;
 import com.kishanknows.backend.auth.model.UserAuth;
 import com.kishanknows.backend.core.security.JwtUtil;
 import com.kishanknows.backend.core.security.PasswordHasher;
@@ -19,9 +20,11 @@ import java.util.Optional;
 @Service
 public class UserAuthService {
     private final UserRepository repo;
+    private final RefreshTokenService refreshTokenService;
 
-    public UserAuthService(UserRepository repo){
+    public UserAuthService(UserRepository repo, RefreshTokenService refreshTokenService){
         this.repo = repo;
+        this.refreshTokenService = refreshTokenService;
     }
 
     public UserAuth registerUser(UserRegistrationRequest request){
@@ -37,8 +40,9 @@ public class UserAuthService {
             User user = UserAuthMapper.toUserDomain(request, hashedPassword);
             UserEntity entity = UserMapper.toEntity(user);
             repo.save(entity);
-            String token = JwtUtil.generateToken(entity.getId(), entity.getName(), entity.getEmail());
-            return new UserAuth("user creation successful", true, token);
+            String accessToken = JwtUtil.generateAccessToken(entity.getId(), entity.getName(), entity.getEmail());
+            String refreshToken = refreshTokenService.createRefreshToken(entity.getId());
+            return new UserAuth("user creation successful", true, accessToken, refreshToken);
         }
     }
 
@@ -52,8 +56,9 @@ public class UserAuthService {
             String hashedPassword = userEntity.getPassword();
             Boolean isPasswordCorrect = hasher.matches(password, hashedPassword);
             if(isPasswordCorrect){
-                String token = JwtUtil.generateToken(userEntity.getId(), userEntity.getName(), userEntity.getEmail());
-                return new UserAuth("user logged in successfully", true, token);
+                String accessToken = JwtUtil.generateAccessToken(userEntity.getId(), userEntity.getName(), userEntity.getEmail());
+                String refreshToken = refreshTokenService.createRefreshToken(userEntity.getId());
+                return new UserAuth("user logged in successfully", true, accessToken, refreshToken);
             }
             else{
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "incorrect password");
@@ -62,6 +67,11 @@ public class UserAuthService {
         else{
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "username not found");
         }
+    }
+
+    public UserEntity getUserById(Long id) {
+        return repo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
 }
