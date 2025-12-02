@@ -3,6 +3,7 @@ package com.kishanknows.backend.auth.model;
 public record UserAuth(
         String message,
         Boolean success,
-        String token
+        String accessToken,
+        String refreshToken
 ) {
 }
